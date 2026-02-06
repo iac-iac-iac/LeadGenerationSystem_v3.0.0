@@ -5,13 +5,13 @@ import time
 import threading
 from utils.logger import Logger
 from tkinter import filedialog, messagebox
-# from modules.analytics import Analytics # Временно отключен. Не реализована
+from modules.analytics import Analytics
 from gui.preview_table import PreviewTable
 from utils.config_loader import ConfigLoader
 from database.db_manager import DatabaseManager
 from modules.data_processor import DataProcessor
-# from modules.chart_generator import ChartGenerator # Временно отключен. Не реализована
-# from modules.report_exporter import ReportExporter # Временно отключен. Не реализована
+from modules.chart_generator import ChartGenerator
+from modules.report_exporter import ReportExporter
 
 
 class MainWindow(ctk.CTk):
@@ -38,7 +38,7 @@ class MainWindow(ctk.CTk):
         self.loaded_files = []
         self.processed_data = None
         self.processor = None
-        self.analytics = Analytics()
+        self.analytics = Analytics(logger=self.logger)
         self.lead_file = None
         self.deal_file = None
         self.current_theme = theme

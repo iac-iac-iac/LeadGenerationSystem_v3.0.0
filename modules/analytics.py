@@ -5,10 +5,23 @@ from collections import Counter
 class Analytics:
     """Анализ результатов из Битрикс24"""
 
-    def __init__(self):
+    def __init__(self, logger=None):
         self.lead_df = None
         self.deal_df = None
         self.metrics = {}
+        self.logger = logger
+
+    def _log(self, message, level='info'):
+        """Логирование с поддержкой self._log() как fallback"""
+        if self.logger:
+            if level == 'info':
+                self.logger.info(message)
+            elif level == 'warning':
+                self.logger.warning(message)
+            elif level == 'error':
+                self.logger.error(message)
+        else:
+            self._log(message)
 
     def load_bitrix_exports(self, lead_csv_path, deal_csv_path):
         """Загрузка экспортов из Битрикс"""
@@ -26,13 +39,13 @@ class Analytics:
                 self.lead_df = pd.read_csv(
                     lead_csv_path, encoding='utf-8-sig', low_memory=False)
 
-            print(
+            self._log(
                 f"✅ LEAD загружен: {len(self.lead_df)} строк, {len(self.lead_df.columns)} колонок")
-            print(f"📋 ВСЕ колонки LEAD:")
+            self._log(f"📋 ВСЕ колонки LEAD:")
             for idx, col in enumerate(self.lead_df.columns, 1):
-                print(f"   {idx}. {col}")
+                self._log(f"   {idx}. {col}")
         except Exception as e:
-            print(f"⚠️  Ошибка загрузки LEAD: {e}")
+            self._log(f"⚠️  Ошибка загрузки LEAD: {e}")
             self.lead_df = pd.DataFrame()
 
         try:
@@ -49,13 +62,13 @@ class Analytics:
                 self.deal_df = pd.read_csv(
                     deal_csv_path, encoding='utf-8-sig', low_memory=False)
 
-            print(
+            self._log(
                 f"\n✅ DEAL загружен: {len(self.deal_df)} строк, {len(self.deal_df.columns)} колонок")
-            print(f"📋 ВСЕ колонки DEAL:")
+            self._log(f"📋 ВСЕ колонки DEAL:")
             for idx, col in enumerate(self.deal_df.columns, 1):
-                print(f"   {idx}. {col}")
+                self._log(f"   {idx}. {col}")
         except Exception as e:
-            print(f"⚠️  Ошибка загрузки DEAL: {e}")
+            self._log(f"⚠️  Ошибка загрузки DEAL: {e}")
             self.deal_df = pd.DataFrame()
 
     def filter_my_leads(self):
@@ -86,10 +99,10 @@ class Analytics:
                 source_col_deal = col
                 break
 
-        print(f"\n🔍 Поиск колонки 'Источник телефона':")
-        print(
+        self._log(f"\n🔍 Поиск колонки 'Источник телефона':")
+        self._log(
             f"   LEAD: {source_col_lead if source_col_lead else '❌ НЕ НАЙДЕНА'}")
-        print(
+        self._log(
             f"   DEAL: {source_col_deal if source_col_deal else '❌ НЕ НАЙДЕНА'}")
 
         initial_lead = len(self.lead_df)
@@ -98,35 +111,37 @@ class Analytics:
         # Фильтрация LEAD
         if source_col_lead:
             # Показываем примеры значений
-            print(f"\n   Примеры значений в '{source_col_lead}' (LEAD):")
+            self._log(f"\n   Примеры значений в '{source_col_lead}' (LEAD):")
             sample_values = self.lead_df[source_col_lead].dropna().unique()[:5]
             for val in sample_values:
-                print(f"      - {val}")
+                self._log(f"      - {val}")
 
             # Фильтруем по .csv
             self.lead_df = self.lead_df[
                 self.lead_df[source_col_lead].astype(
                     str).str.contains('.csv', case=False, na=False)
             ]
-            print(f"\n   ✅ LEAD: {initial_lead} → {len(self.lead_df)}")
+            self._log(f"\n   ✅ LEAD: {initial_lead} → {len(self.lead_df)}")
         else:
-            print(f"\n   ⚠️  РЕШЕНИЕ: Анализируем ВСЕ лиды в LEAD (колонка не найдена)")
+            self._log(
+                f"\n   ⚠️  РЕШЕНИЕ: Анализируем ВСЕ лиды в LEAD (колонка не найдена)")
             # Не фильтруем, анализируем все
 
         # Фильтрация DEAL
         if source_col_deal:
-            print(f"\n   Примеры значений в '{source_col_deal}' (DEAL):")
+            self._log(f"\n   Примеры значений в '{source_col_deal}' (DEAL):")
             sample_values = self.deal_df[source_col_deal].dropna().unique()[:5]
             for val in sample_values:
-                print(f"      - {val}")
+                self._log(f"      - {val}")
 
             self.deal_df = self.deal_df[
                 self.deal_df[source_col_deal].astype(
                     str).str.contains('.csv', case=False, na=False)
             ]
-            print(f"\n   ✅ DEAL: {initial_deal} → {len(self.deal_df)}")
+            self._log(f"\n   ✅ DEAL: {initial_deal} → {len(self.deal_df)}")
         else:
-            print(f"\n   ⚠️  РЕШЕНИЕ: Анализируем ВСЕ сделки в DEAL (колонка не найдена)")
+            self._log(
+                f"\n   ⚠️  РЕШЕНИЕ: Анализируем ВСЕ сделки в DEAL (колонка не найдена)")
 
     def calculate_metrics(self):
         """Подсчёт всех метрик"""
@@ -135,8 +150,8 @@ class Analytics:
         total_leads = len(self.lead_df) + len(self.deal_df)
         self.metrics['total_leads'] = total_leads
 
-        print(f"\n📊 ПОДСЧЁТ МЕТРИК:")
-        print(
+        self._log(f"\n📊 ПОДСЧЁТ МЕТРИК:")
+        self._log(
             f"   Всего записей: {total_leads} (LEAD: {len(self.lead_df)}, DEAL: {len(self.deal_df)})")
 
         # 2. Отказы (ищем любую колонку с "отказ" или "причина")
@@ -154,12 +169,12 @@ class Analytics:
             self.metrics['rejection_reasons'] = dict(reason_counts)
             self.metrics['total_rejections'] = len(rejection_reasons)
 
-            print(
+            self._log(
                 f"   ✅ Причины отказа: найдена колонка '{rejection_col}' ({len(rejection_reasons)} записей)")
         else:
             self.metrics['rejection_reasons'] = {}
             self.metrics['total_rejections'] = 0
-            print(f"   ⚠️  Причины отказа: колонка не найдена")
+            self._log(f"   ⚠️  Причины отказа: колонка не найдена")
 
         # 3. В работе (DEAL) - ищем колонку со "стадия"
         deal_stage_col = None
@@ -174,13 +189,13 @@ class Analytics:
             self.metrics['deal_stages'] = stage_counts
             self.metrics['total_deals'] = len(self.deal_df)
 
-            print(
+            self._log(
                 f"   ✅ Стадии сделок: найдена колонка '{deal_stage_col}' ({len(self.deal_df)} записей)")
-            print(f"      Стадии: {list(stage_counts.keys())[:3]}...")
+            self._log(f"      Стадии: {list(stage_counts.keys())[:3]}...")
         else:
             self.metrics['deal_stages'] = {}
             self.metrics['total_deals'] = 0
-            print(f"   ⚠️  Стадии сделок: колонка не найдена")
+            self._log(f"   ⚠️  Стадии сделок: колонка не найдена")
 
         # 4. Успешные продажи
         successful_deals = 0
@@ -194,10 +209,10 @@ class Analytics:
                 ])
                 if count > 0:
                     successful_deals += count
-                    print(f"      - Найдено '{keyword}': {count} сделок")
+                    self._log(f"      - Найдено '{keyword}': {count} сделок")
 
         self.metrics['successful_deals'] = successful_deals
-        print(f"   ✅ Успешных продаж: {successful_deals}")
+        self._log(f"   ✅ Успешных продаж: {successful_deals}")
 
         # 5. Конверсия
         if total_leads > 0:
@@ -207,7 +222,7 @@ class Analytics:
         else:
             self.metrics['conversion'] = 0.0
 
-        print(f"   ✅ Конверсия: {self.metrics['conversion']}%")
+        self._log(f"   ✅ Конверсия: {self.metrics['conversion']}%")
 
         # 6. Топ-менеджеры
         manager_col = None
@@ -220,11 +235,11 @@ class Analytics:
             manager_counts = self.deal_df[manager_col].value_counts().head(
                 3).to_dict()
             self.metrics['top_managers'] = manager_counts
-            print(f"   ✅ Менеджеры: найдена колонка '{manager_col}'")
-            print(f"      Топ-3: {list(manager_counts.keys())}")
+            self._log(f"   ✅ Менеджеры: найдена колонка '{manager_col}'")
+            self._log(f"      Топ-3: {list(manager_counts.keys())}")
         else:
             self.metrics['top_managers'] = {}
-            print(f"   ⚠️  Менеджеры: колонка не найдена")
+            self._log(f"   ⚠️  Менеджеры: колонка не найдена")
 
         return self.metrics
 

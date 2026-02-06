@@ -9,96 +9,87 @@ class DatabaseManager:
 
     def __init__(self, db_path='data/database.db'):
         self.db_path = db_path
-        Path('data').mkdir(exist_ok=True)
+
+        # Создать папку для базы данных если её нет
+        from pathlib import Path
+        db_dir = Path(db_path).parent
+        db_dir.mkdir(parents=True, exist_ok=True)
+
         self.init_database()
 
     def init_database(self):
-        """Инициализация таблиц"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        """Инициализация базы данных и создание таблиц"""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
 
-        # Таблица истории обработки
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS processing_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                input_files TEXT,
-                output_file TEXT,
-                rows_processed INTEGER,
-                rows_output INTEGER,
-                duplicates_removed INTEGER,
-                invalid_phones INTEGER,
-                processing_time REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+            # Создание таблицы истории обработки
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS processing_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    filename TEXT NOT NULL,
+                    processed_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    rows_processed INTEGER,
+                    status TEXT
+                )
+            ''')
 
-        # Таблица менеджеров
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS managers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                is_active INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+            conn.commit()
+            print(f"✅ База данных инициализирована: {self.db_path}")
 
-        conn.commit()
-        conn.close()
+        except sqlite3.Error as e:
+            print(f"❌ Ошибка инициализации базы данных: {e}")
+            raise
+        finally:
+            if conn:
+                conn.close()
 
-    def save_processing_history(self, input_files, output_file, stats, processing_time):
-        """Сохранение истории обработки"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+    def save_processing_history(self, filename, rows_processed, status='success'):
+        """Сохранение истории обработки файла"""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            INSERT INTO processing_history 
-            (input_files, output_file, rows_processed, rows_output, 
-             duplicates_removed, invalid_phones, processing_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            json.dumps(input_files),
-            output_file,
-            stats.get('total_rows', 0),
-            stats.get('valid_rows', 0),
-            stats.get('duplicates_removed', 0),
-            stats.get('invalid_phones', 0),
-            processing_time
-        ))
+            cursor.execute('''
+                INSERT INTO processing_history (filename, rows_processed, status)
+                VALUES (?, ?, ?)
+            ''', (filename, rows_processed, status))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+            print(f"✅ История обработки сохранена: {filename}")
+
+        except sqlite3.Error as e:
+            print(f"❌ Ошибка сохранения истории: {e}")
+            # Не пробрасываем исключение - это не критично
+        finally:
+            if conn:
+                conn.close()
 
     def get_processing_history(self, limit=10):
-        """Получение истории обработок"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        """Получение истории обработки файлов"""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT id, input_files, output_file, rows_processed, rows_output,
-                   duplicates_removed, invalid_phones, processing_time, created_at
-            FROM processing_history
-            ORDER BY created_at DESC
-            LIMIT ?
-        ''', (limit,))
+            cursor.execute('''
+                SELECT filename, processed_date, rows_processed, status
+                FROM processing_history
+                ORDER BY processed_date DESC
+                LIMIT ?
+            ''', (limit,))
 
-        rows = cursor.fetchall()
-        conn.close()
+            history = cursor.fetchall()
+            return history
 
-        history = []
-        for row in rows:
-            history.append({
-                'id': row[0],
-                'input_files': json.loads(row[1]),
-                'output_file': row[2],
-                'rows_processed': row[3],
-                'rows_output': row[4],
-                'duplicates_removed': row[5],
-                'invalid_phones': row[6],
-                'processing_time': row[7],
-                'created_at': row[8]
-            })
-
-        return history
+        except sqlite3.Error as e:
+            print(f"❌ Ошибка получения истории: {e}")
+            return []  # Возвращаем пустой список при ошибке
+        finally:
+            if conn:
+                conn.close()
 
     def save_managers(self, managers_list):
         """Сохранение списка менеджеров"""
