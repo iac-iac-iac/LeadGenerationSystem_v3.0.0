@@ -544,14 +544,11 @@ class MainWindow(ctk.CTk):
                 Logger.log_export(output_file, len(self.processed_data))
 
                 # Сохранение в БД
-                stats = self.processor.get_statistics()
                 self.db.save_processing_history(
-                    [os.path.basename(f) for f in self.loaded_files],
-                    os.path.basename(output_file),
-                    stats,
-                    0
+                    filename=os.path.basename(output_file),
+                    rows_processed=len(self.processed_data),
+                    status='success'
                 )
-
                 messagebox.showinfo(
                     "Успех",
                     f"Файл сохранён:\n{output_file}\n\nТеперь можете импортировать его в Битрикс24"

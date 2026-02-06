@@ -1,7 +1,10 @@
 {
   "app_name": "Lead Generation System",
   "version": "1.0.0",
-  "managers": [],
+  "managers": [
+    "Иван Сергеев",
+    "Алексей Пупкин"
+  ],
   "integrations": {
     "webbee_api_token": ""
   },
@@ -18,6 +21,7 @@
       ".xls",
       ".csv"
     ],
-    "default_encoding": "utf-8"
+    "default_encoding": "utf-8",
+    "theme": "dark"
   }
 }

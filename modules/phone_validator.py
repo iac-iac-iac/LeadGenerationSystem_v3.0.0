@@ -14,24 +14,38 @@ class PhoneValidator:
         Returns:
             str: Очищенный номер (11 цифр) или None если невалидный
         """
-        if pd.isna(phone) or phone == '':
+        if pd.isna(phone) or phone == '' or str(phone).lower() in ['nan', 'none', '']:
             return None
 
-        # Конвертация из строки
-        phone_str = str(phone)
+        # Конвертация в строку
+        phone_str = str(phone).strip()
+
+        if not phone_str or phone_str.lower() in ['nan', 'none', '']:
+            return None
 
         # НОВОЕ: Удаляем .0 в конце (если есть)
         if phone_str.endswith('.0'):
             phone_str = phone_str[:-2]
 
-        # Обработка научной нотации (7.8005001695e+10 → 78005001695)
+        # НОВОЕ: Обработка научной нотации (7.8005001695e+10 → 78005001695)
+        # Проверяем наличие экспоненты
         if 'e+' in phone_str.lower() or 'e-' in phone_str.lower():
             try:
                 # Конвертируем через float в int
                 phone_float = float(phone_str)
-                # Округляем (на случай погрешности float)
+
+                # Проверяем что число не слишком большое/маленькое
+                if phone_float < 1e9 or phone_float > 9e11:
+                    return None
+
+                # Округляем и конвертируем в строку
                 phone_str = str(int(round(phone_float)))
-            except (ValueError, OverflowError):
+
+                print(
+                    f"🔄 Конвертирован из научной нотации: {phone} → {phone_str}")
+
+            except (ValueError, OverflowError) as e:
+                print(f"⚠️ Ошибка конвертации научной нотации: {phone} - {e}")
                 return None
 
         # Удаление всех символов кроме цифр
@@ -41,7 +55,10 @@ class PhoneValidator:
         if len(digits_only) < 10:
             return None
 
-        # Нормализация: если 10 цифр и не начинается с 7/8 → добавляем 7
+        # Обрезаем лишние нули в начале (если есть)
+        digits_only = digits_only.lstrip('0')
+
+        # Нормализация: если 10 цифр → добавляем 7
         if len(digits_only) == 10:
             digits_only = '7' + digits_only
 

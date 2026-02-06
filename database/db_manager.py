@@ -68,28 +68,42 @@ class DatabaseManager:
                 conn.close()
 
     def get_processing_history(self, limit=10):
-        """Получение истории обработки файлов"""
-        conn = None
+        """
+        Получение истории обработок
+        Args:
+            limit: Количество записей
+        Returns:
+            list: История обработок
+        """
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute('''
-                SELECT filename, processed_date, rows_processed, status
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                SELECT id, files, total_rows, valid_rows, duplicates_removed, 
+                    invalid_phones, timestamp
                 FROM processing_history
-                ORDER BY processed_date DESC
+                ORDER BY timestamp DESC
                 LIMIT ?
-            ''', (limit,))
+            """, (limit,))
 
-            history = cursor.fetchall()
+            rows = cursor.fetchall()
+
+            history = []
+            for row in rows:
+                history.append({
+                    'id': row[0],
+                    'files': row[1],  # Изменено с 'filename' на 'files'
+                    'total_rows': row[2],
+                    'valid_rows': row[3],
+                    'duplicates_removed': row[4],
+                    'invalid_phones': row[5],
+                    'timestamp': row[6]
+                })
+
             return history
 
-        except sqlite3.Error as e:
-            print(f"❌ Ошибка получения истории: {e}")
-            return []  # Возвращаем пустой список при ошибке
-        finally:
-            if conn:
-                conn.close()
+        except Exception as e:
+            self.logger.error(f"Ошибка получения истории: {str(e)}")
+            return []
 
     def save_managers(self, managers_list):
         """Сохранение списка менеджеров"""

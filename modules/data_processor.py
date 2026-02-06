@@ -31,19 +31,28 @@ class DataProcessor:
 
         for sep, sep_name in separators:
             try:
+                # ИЗМЕНЕНО: Читаем без dtype, затем обработаем
                 df = pd.read_csv(
                     file_path,
                     sep=sep,
                     encoding='utf-8',
                     on_bad_lines='skip',
-                    engine='python',
-                    dtype=str  # ← КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Читаем все как строки!
+                    engine='python'
                 )
 
                 # Проверяем что файл прочитан правильно
                 if len(df.columns) > 1:
                     print(f"✅ Файл прочитан с разделителем: {sep_name}")
                     print(f"📊 Найдено колонок: {len(df.columns)}")
+
+                    # НОВОЕ: Конвертируем phone колонки в строки с обработкой float
+                    phone_cols = [
+                        col for col in df.columns if 'phone' in col.lower()]
+                    for col in phone_cols:
+                        # Конвертируем float в строку без научной нотации
+                        df[col] = df[col].apply(lambda x: f"{x:.0f}" if pd.notna(x) and isinstance(
+                            x, (int, float)) else str(x) if pd.notna(x) else None)
+
                     return df
             except Exception as e:
                 continue
@@ -55,13 +64,20 @@ class DataProcessor:
                 sep=None,
                 encoding='utf-8',
                 on_bad_lines='skip',
-                engine='python',
-                dtype=str  # ← Читаем все как строки
+                engine='python'
             )
 
             if len(df.columns) > 1:
                 print(f"✅ Файл прочитан с автоопределением разделителя")
                 print(f"📊 Найдено колонок: {len(df.columns)}")
+
+                # Конвертируем phone колонки
+                phone_cols = [
+                    col for col in df.columns if 'phone' in col.lower()]
+                for col in phone_cols:
+                    df[col] = df[col].apply(lambda x: f"{x:.0f}" if pd.notna(x) and isinstance(
+                        x, (int, float)) else str(x) if pd.notna(x) else None)
+
                 return df
         except Exception as e:
             pass
@@ -72,11 +88,17 @@ class DataProcessor:
                 file_path,
                 encoding='utf-8-sig',
                 on_bad_lines='skip',
-                engine='python',
-                dtype=str  # ← Читаем все как строки
+                engine='python'
             )
             print(f"⚠️ Файл прочитан, но может быть неправильная структура")
             print(f"📊 Найдено колонок: {len(df.columns)}")
+
+            # Конвертируем phone колонки
+            phone_cols = [col for col in df.columns if 'phone' in col.lower()]
+            for col in phone_cols:
+                df[col] = df[col].apply(lambda x: f"{x:.0f}" if pd.notna(x) and isinstance(
+                    x, (int, float)) else str(x) if pd.notna(x) else None)
+
             return df
         except Exception as e:
             print(f"❌ Ошибка чтения файла {file_path}: {e}")

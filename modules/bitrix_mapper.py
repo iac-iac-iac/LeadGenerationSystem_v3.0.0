@@ -34,10 +34,19 @@ class BitrixMapper:
         """
         bitrix_df = pd.DataFrame()
 
-        # Получаем название компании (используем разные варианты)
-        company_name = df.get('Название', '')
-        if company_name is None or (isinstance(company_name, pd.Series) and company_name.isna().all()):
-            company_name = df.get('title', '')
+        # Функция-помощник для безопасного получения значений
+        def safe_get(column_name, default=''):
+            """Безопасное получение колонки из DataFrame"""
+            if column_name in df.columns:
+                col = df[column_name]
+                # Если это Series - возвращаем как есть
+                if isinstance(col, pd.Series):
+                    return col
+                # Если это скалярное значение - создаем Series
+                else:
+                    return pd.Series([col] * len(df))
+            else:
+                return pd.Series([default] * len(df))
 
         # Маппинг колонок
         bitrix_df['Название лида'] = df.apply(
@@ -45,26 +54,47 @@ class BitrixMapper:
             axis=1
         )
 
-        bitrix_df['Адрес'] = df.get('Адрес', df.get('address', ''))
-        bitrix_df['Рабочий телефон'] = df['phone_1']
-        bitrix_df['Мобильный телефон'] = df.get('phone_2', '')
+        bitrix_df['Адрес'] = safe_get('Адрес')
+        if bitrix_df['Адрес'].isna().all() or (bitrix_df['Адрес'] == '').all():
+            bitrix_df['Адрес'] = safe_get('address')
+
+        bitrix_df['Рабочий телефон'] = safe_get('phone_1')
+        bitrix_df['Мобильный телефон'] = safe_get('phone_2')
 
         # Очистка URL от UTM
-        bitrix_df['Корпоративный сайт'] = df.get(
-            'companyUrl', '').apply(URLCleaner.clean_url)
+        company_url = safe_get('companyUrl')
+        if isinstance(company_url, pd.Series):
+            bitrix_df['Корпоративный сайт'] = company_url.apply(
+                URLCleaner.clean_url)
+        else:
+            bitrix_df['Корпоративный сайт'] = ''
 
         # Извлечение username из соцсетей
-        bitrix_df['Контакт Telegram'] = df.get('telegram', '').apply(
-            lambda x: URLCleaner.extract_social_username(x, 'telegram')
-        )
+        telegram = safe_get('telegram')
+        if isinstance(telegram, pd.Series):
+            bitrix_df['Контакт Telegram'] = telegram.apply(
+                lambda x: URLCleaner.extract_social_username(x, 'telegram')
+            )
+        else:
+            bitrix_df['Контакт Telegram'] = ''
 
-        bitrix_df['Контакт ВКонтакте'] = df.get('vkontakte', '').apply(
-            lambda x: URLCleaner.extract_social_username(x, 'vkontakte')
-        )
+        vkontakte = safe_get('vkontakte')
+        if isinstance(vkontakte, pd.Series):
+            bitrix_df['Контакт ВКонтакте'] = vkontakte.apply(
+                lambda x: URLCleaner.extract_social_username(x, 'vkontakte')
+            )
+        else:
+            bitrix_df['Контакт ВКонтакте'] = ''
 
-        bitrix_df['Контакт Viber'] = df.get('viber', df.get('whatsapp', ''))
-        bitrix_df['Название компании'] = df.get(
-            'Название', df.get('title', ''))
+        # Viber/WhatsApp
+        viber = safe_get('viber')
+        if viber.isna().all() or (viber == '').all():
+            viber = safe_get('whatsapp')
+        bitrix_df['Контакт Viber'] = viber
+
+        bitrix_df['Название компании'] = safe_get('Название')
+        if bitrix_df['Название компании'].isna().all() or (bitrix_df['Название компании'] == '').all():
+            bitrix_df['Название компании'] = safe_get('title')
 
         # Статичные значения
         for key, value in BitrixMapper.STATIC_VALUES.items():
