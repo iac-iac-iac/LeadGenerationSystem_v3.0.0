@@ -1,0 +1,23 @@
+{
+  "app_name": "Lead Generation System",
+  "version": "1.0.0",
+  "managers": [],
+  "integrations": {
+    "webbee_api_token": ""
+  },
+  "paths": {
+    "input_folder": "data/input",
+    "output_folder": "data/output",
+    "database": "data/database.db",
+    "logs": "logs"
+  },
+  "settings": {
+    "max_file_size_mb": 50,
+    "supported_formats": [
+      ".xlsx",
+      ".xls",
+      ".csv"
+    ],
+    "default_encoding": "utf-8"
+  }
+}
